@@ -154,6 +154,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
                     }
                     _context?.emit('ready', {'camera': _cameraJson()});
                   },
+                  // 注意：iOS 上程式化移動相機（moveCamera）不會觸發這個回呼，所以不能拿它當縮放的基準
                   onCameraMove: (position) => _camera = position,
                   onCameraIdle: () => _context?.emit('cameraIdle', _cameraJson()),
                 ),
@@ -181,12 +182,11 @@ class GoogleMapsPlugin extends AqutterPlugin {
       await _emitTap(controller, message);
       return;
     }
-    final update = _mapper.update(message, size: _size, currentZoom: _camera.zoom);
-    if (update == null) {
-      return;
+    // 一律立即套用，不做動畫（理由見 moveTo）；縮放與平移是增量，必須依序套用
+    final updates = _mapper.update(message, size: _size);
+    for (final update in updates) {
+      await controller.moveCamera(update);
     }
-    // 一律立即套用，不做動畫（理由見 moveTo）
-    await controller.moveCamera(update);
   }
 
   /// 點擊：換成經緯度回報給網頁（座標為地圖元件的實體像素）。
