@@ -105,11 +105,18 @@ override func application(
   _ application: UIApplication,
   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
 ) -> Bool {
-  if let key = Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String, !key.isEmpty {
-    GMSServices.provideAPIKey(key)
-  }
+  // 沒有設定 key 時用佔位值：地圖顯示灰色（授權失敗）但不會崩潰。
+  // iOS 若完全沒呼叫 provideAPIKey，建立地圖時 App 會直接終止。
+  let key = (Bundle.main.object(forInfoDictionaryKey: "GMSApiKey") as? String) ?? ""
+  GMSServices.provideAPIKey(key.isEmpty ? "NO_KEY" : key)
   return super.application(application, didFinishLaunchingWithOptions: launchOptions)
 }
+```
+
+`ios/Flutter/Secrets.xcconfig` 記得加進 `.gitignore`：
+
+```
+ios/Flutter/Secrets.xcconfig
 ```
 
 ## 運作方式與限制
