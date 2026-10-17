@@ -22,7 +22,7 @@ const String aqutterGoogleMapsSession = 'google-maps';
 class GoogleMapsPlugin extends AqutterPlugin {
   GoogleMapsPlugin({
     this.initialCamera = const CameraPosition(target: LatLng(25.0330, 121.5654), zoom: 12),
-    this.fps = 60,
+    this.fps = 30,
     this.adaptive = AqutterNativeAdaptive.resolution,
     this.mapType = MapType.normal,
   });
@@ -127,8 +127,9 @@ class GoogleMapsPlugin extends AqutterPlugin {
         fps: fps,
         adaptive: adaptive,
         matchViewportAspect: true,
-        // iOS 的 PlatformView 不在 Flutter 的圖層裡，要用原生 drawHierarchy 擷取
-        nativeCapture: defaultTargetPlatform == TargetPlatform.iOS,
+        // RepaintBoundary.toImage 擷取不到地圖（texture／PlatformView 的內容，鏡像會是透明的），改用原生擷取：
+        // Android 用 PixelCopy 複製 Flutter 的繪圖表面，iOS 用 drawHierarchy 直接擷取地圖 view
+        nativeCapture: true,
         nativeViewTypeContains: 'GMSMapView',
         onMessage: _onMessage,
         child: LayoutBuilder(
