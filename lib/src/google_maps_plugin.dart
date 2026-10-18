@@ -24,7 +24,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
     this.initialCamera = const CameraPosition(target: LatLng(25.0330, 121.5654), zoom: 12),
     this.fps = 30,
     this.adaptive = AqutterNativeAdaptive.resolution,
-    this.minScale = 0.25,
+    this.minScale = 0.5,
     this.mapType = MapType.normal,
   });
 
