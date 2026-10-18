@@ -56,6 +56,14 @@ class GoogleMapsPlugin extends AqutterPlugin {
   Map<String, AqutterPluginHandler> get handlers => {
         'isSupported': (payload) async => {'supported': isSupported},
         'getCamera': (payload) async => _cameraJson(),
+        // 除錯：原生擷取與連線的內部狀態（地圖卡住時看是哪一段停了）
+        'diag': (payload) async => {
+              ...AqutterNativeHost.instance.diagnostics(aqutterGoogleMapsSession),
+              'controllerReady': _controller.isCompleted,
+              'applying': _applying,
+              'pending': _pending.hasPending,
+              'camera': _cameraJson(),
+            },
         'moveTo': (payload) async {
           final controller = await _readyController();
           if (controller == null) {
