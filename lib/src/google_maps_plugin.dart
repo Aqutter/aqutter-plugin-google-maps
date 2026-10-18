@@ -24,6 +24,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
     this.initialCamera = const CameraPosition(target: LatLng(25.0330, 121.5654), zoom: 12),
     this.fps = 30,
     this.adaptive = AqutterNativeAdaptive.resolution,
+    this.minScale = 0.25,
     this.mapType = MapType.normal,
   });
 
@@ -35,6 +36,9 @@ class GoogleMapsPlugin extends AqutterPlugin {
 
   /// 擷取跟不上時的策略（預設降解析度、停下來補定格幀）。
   final AqutterNativeAdaptive adaptive;
+
+  /// 自適應降解析度的下限（線性倍率）。地圖在動的時候糊一點沒關係，停下來會補一張完整解析度的定格幀。
+  final double minScale;
 
   final MapType mapType;
 
@@ -134,6 +138,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
         sessionId: aqutterGoogleMapsSession,
         fps: fps,
         adaptive: adaptive,
+        minScale: minScale,
         matchViewportAspect: true,
         // RepaintBoundary.toImage 擷取不到地圖（texture／PlatformView 的內容，鏡像會是透明的），改用原生擷取：
         // Android 用 PixelCopy 複製 Flutter 的繪圖表面，iOS 用 drawHierarchy 直接擷取地圖 view
