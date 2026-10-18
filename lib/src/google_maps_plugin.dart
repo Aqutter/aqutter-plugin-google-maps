@@ -13,6 +13,12 @@ import 'gesture_mapper.dart';
 const bool _baseline = bool.fromEnvironment('AQUTTER_MAP_BASELINE');
 
 /// 以 `--dart-define=AQUTTER_MAP_DUTY=0.7` 指定原生擷取佔用主執行緒的上限（0 到 1），效能量測用；沒給時用 `AqutterNative` 的預設（0.7）。
+/// 以 `--dart-define=AQUTTER_MAP_FPS=240` 覆蓋地圖鏡像的目標幀率（量測用）。
+const int _fpsOverride = int.fromEnvironment('AQUTTER_MAP_FPS');
+
+/// 以 `--dart-define=AQUTTER_MAP_MINSCALE=0.25` 覆蓋解析度下限（量測用）。
+final double? _minScaleOverride = double.tryParse(const String.fromEnvironment('AQUTTER_MAP_MINSCALE'));
+
 final double? _dutyOverride = double.tryParse(const String.fromEnvironment('AQUTTER_MAP_DUTY'));
 
 /// 網頁 `<aqutter-native session="google-maps">` 對應的工作階段 id。
@@ -142,9 +148,9 @@ class GoogleMapsPlugin extends AqutterPlugin {
     return Positioned.fill(
       child: AqutterNative(
         sessionId: aqutterGoogleMapsSession,
-        fps: fps,
+        fps: _fpsOverride > 0 ? _fpsOverride : fps,
         adaptive: adaptive,
-        minScale: minScale,
+        minScale: _minScaleOverride ?? minScale,
         nativeMaxDuty: _baseline ? 1.0 : _dutyOverride,
         matchViewportAspect: true,
         // RepaintBoundary.toImage 擷取不到地圖（texture／PlatformView 的內容，鏡像會是透明的），改用原生擷取：
