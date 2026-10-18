@@ -182,10 +182,30 @@ class GoogleMapsPlugin extends AqutterPlugin {
       await _emitTap(controller, message);
       return;
     }
-    // 一律立即套用，不做動畫（理由見 moveTo）；縮放與平移是增量，必須依序套用
-    final updates = _mapper.update(message, size: _size);
-    for (final update in updates) {
-      await controller.moveCamera(update);
+    // 變動先累加，再由 _applyPending 一次套用最新的合併結果（原生地圖忙時不堆積，理由見 AqutterMapCameraAccumulator）
+    _pending.add(_mapper.update(message, size: _size));
+    await _applyPending(controller);
+  }
+
+  final AqutterMapCameraAccumulator _pending = AqutterMapCameraAccumulator();
+  bool _applying = false;
+
+  /// 套用累積的相機變動。同一時間只有一個在跑；跑的當中新來的變動累加在 [_pending]，這一輪結束後接著套用。
+  /// 一律立即套用、不做動畫（理由見 moveTo）。
+  Future<void> _applyPending(GoogleMapController controller) async {
+    if (_applying) {
+      return;
+    }
+    _applying = true;
+    try {
+      while (_pending.hasPending) {
+        for (final update in _pending.take().toUpdates()) {
+          await controller.moveCamera(update);
+        }
+      }
+    }
+    finally {
+      _applying = false;
     }
   }
 
