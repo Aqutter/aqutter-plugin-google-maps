@@ -9,10 +9,10 @@ import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platf
 
 import 'gesture_mapper.dart';
 
-/// 以 `--dart-define=AQUTTER_MAP_BASELINE=true` 關掉主執行緒占用上限（iOS 預設 0.7），效能 A/B 比較用。
+/// 以 `--dart-define=AQUTTER_MAP_BASELINE=true` 關掉主執行緒占用上限（預設 0.7），效能 A/B 比較用。
 const bool _baseline = bool.fromEnvironment('AQUTTER_MAP_BASELINE');
 
-/// 以 `--dart-define=AQUTTER_MAP_DUTY=0.7` 指定原生擷取佔用主執行緒的上限（0 到 1），效能量測用；沒給時 iOS 預設 0.7、其他平台不限制。
+/// 以 `--dart-define=AQUTTER_MAP_DUTY=0.7` 指定原生擷取佔用主執行緒的上限（0 到 1），效能量測用；沒給時用 `AqutterNative` 的預設（0.7）。
 final double? _dutyOverride = double.tryParse(const String.fromEnvironment('AQUTTER_MAP_DUTY'));
 
 /// 網頁 `<aqutter-native session="google-maps">` 對應的工作階段 id。
