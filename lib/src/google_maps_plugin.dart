@@ -12,6 +12,9 @@ import 'gesture_mapper.dart';
 /// 以 `--dart-define=AQUTTER_MAP_BASELINE=true` 關掉主執行緒占用上限（iOS 預設 0.7），效能 A/B 比較用。
 const bool _baseline = bool.fromEnvironment('AQUTTER_MAP_BASELINE');
 
+/// 以 `--dart-define=AQUTTER_MAP_DUTY=0.7` 指定原生擷取佔用主執行緒的上限（0 到 1），效能量測用；沒給時 iOS 預設 0.7、其他平台不限制。
+final double? _dutyOverride = double.tryParse(const String.fromEnvironment('AQUTTER_MAP_DUTY'));
+
 /// 網頁 `<aqutter-native session="google-maps">` 對應的工作階段 id。
 const String aqutterGoogleMapsSession = 'google-maps';
 
@@ -142,7 +145,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
         fps: fps,
         adaptive: adaptive,
         minScale: minScale,
-        nativeMaxDuty: _baseline ? 1.0 : null,
+        nativeMaxDuty: _baseline ? 1.0 : _dutyOverride,
         matchViewportAspect: true,
         // RepaintBoundary.toImage 擷取不到地圖（texture／PlatformView 的內容，鏡像會是透明的），改用原生擷取：
         // Android 用 PixelCopy 複製 Flutter 的繪圖表面，iOS 用 drawHierarchy 直接擷取地圖 view
