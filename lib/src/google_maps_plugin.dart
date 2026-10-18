@@ -13,9 +13,6 @@ import 'gesture_mapper.dart';
 const bool _baseline = bool.fromEnvironment('AQUTTER_MAP_BASELINE');
 
 /// 以 `--dart-define=AQUTTER_MAP_DUTY=0.7` 指定原生擷取佔用主執行緒的上限（0 到 1），效能量測用；沒給時用 `AqutterNative` 的預設（0.7）。
-/// 以 `--dart-define=AQUTTER_MAP_FPS=240` 覆蓋地圖鏡像的目標幀率（量測用）。
-const int _fpsOverride = int.fromEnvironment('AQUTTER_MAP_FPS');
-
 /// 以 `--dart-define=AQUTTER_MAP_MINSCALE=0.25` 覆蓋解析度下限（量測用）。
 final double? _minScaleOverride = double.tryParse(const String.fromEnvironment('AQUTTER_MAP_MINSCALE'));
 
@@ -34,8 +31,8 @@ const String aqutterGoogleMapsSession = 'google-maps';
 class GoogleMapsPlugin extends AqutterPlugin {
   GoogleMapsPlugin({
     this.initialCamera = const CameraPosition(target: LatLng(25.0330, 121.5654), zoom: 12),
-    this.fps = 30,
-    this.adaptive = AqutterNativeAdaptive.resolution,
+    this.quality,
+    this.maxFps,
     this.minScale = 0.5,
     this.mapType = MapType.normal,
   });
@@ -43,13 +40,13 @@ class GoogleMapsPlugin extends AqutterPlugin {
   /// 地圖載入時的相機位置（預設台北）。
   final CameraPosition initialCamera;
 
-  /// 鏡像的目標幀率。
-  final int fps;
+  /// 移動中的解析度政策；`null`（預設）是 `smooth`（固定在 [minScale]，停下來補完整解析度）。
+  final AqutterNativeQuality? quality;
 
-  /// 擷取跟不上時的策略（預設降解析度、停下來補定格幀）。
-  final AqutterNativeAdaptive adaptive;
+  /// 選填的擷取頻率硬上限；`null`（預設）不限制。地圖的擷取要 40 ms 以上，這個上限從來不會綁住它。
+  final int? maxFps;
 
-  /// 自適應降解析度的下限（線性倍率）。地圖在動的時候糊一點沒關係，停下來會補一張完整解析度的定格幀。
+  /// 移動中的解析度倍率（線性，相對於網頁元素的基準解析度，預設 0.5）。停下來會補一張完整解析度的定格幀。
   final double minScale;
 
   final MapType mapType;
@@ -148,8 +145,8 @@ class GoogleMapsPlugin extends AqutterPlugin {
     return Positioned.fill(
       child: AqutterNative(
         sessionId: aqutterGoogleMapsSession,
-        fps: _fpsOverride > 0 ? _fpsOverride : fps,
-        adaptive: adaptive,
+        quality: quality,
+        maxFps: maxFps,
         minScale: _minScaleOverride ?? minScale,
         nativeMaxDuty: _baseline ? 1.0 : _dutyOverride,
         matchViewportAspect: true,
