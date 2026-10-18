@@ -9,7 +9,7 @@ import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platf
 
 import 'gesture_mapper.dart';
 
-/// 以 `--dart-define=AQUTTER_MAP_BASELINE=true` 關掉 JPEG、定格幀壓縮與主執行緒占用上限，回到改進前的傳輸方式；效能 A/B 比較用。
+/// 以 `--dart-define=AQUTTER_MAP_BASELINE=true` 關掉主執行緒占用上限（iOS 預設 0.7），效能 A/B 比較用。
 const bool _baseline = bool.fromEnvironment('AQUTTER_MAP_BASELINE');
 
 /// 網頁 `<aqutter-native session="google-maps">` 對應的工作階段 id。
@@ -142,9 +142,6 @@ class GoogleMapsPlugin extends AqutterPlugin {
         fps: fps,
         adaptive: adaptive,
         minScale: minScale,
-        // 預設依平台（iOS 用 JPEG、Android 傳未壓縮）；基準模式一律不壓縮
-        nativeJpegQuality: _baseline ? 0 : null,
-        nativeSettleJpegQuality: _baseline ? 0 : null,
         nativeMaxDuty: _baseline ? 1.0 : null,
         matchViewportAspect: true,
         // RepaintBoundary.toImage 擷取不到地圖（texture／PlatformView 的內容，鏡像會是透明的），改用原生擷取：
