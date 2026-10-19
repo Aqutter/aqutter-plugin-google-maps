@@ -124,4 +124,4 @@ ios/Flutter/Secrets.xcconfig
 - 擷取：Flutter 的 `RepaintBoundary.toImage` 抓不到地圖（鏡像會是透明的）。Android 直接擷取地圖內的 `TextureView`；iOS 用原生 `drawHierarchy` 擷取地圖 view。Android 地圖用 texture 模式（`useAndroidViewSurface = false`），本 plugin 會自動設定。
 - 效能（Android 平板實測，滿版約 3200 像素寬）：約 15 fps，每幀約 10 MB。
 - 輸入走網頁判斷的語意手勢（`input="gestures"`，預設），換成相機更新。iOS 的 PlatformView 不接受注入的 Flutter 指標事件，所以不用 `input="pointers"`。
-- 擷取成本取決於地圖像素數；移動中的解析度預設是 `smooth`（固定 ×0.4，`GoogleMapsPlugin(quality:, minScale:)` 可調），停下來補完整解析度的定格幀。效能細節見 [aqutter_core 的 doc/nativeview.md](https://github.com/Aqutter/aqutter_core/blob/main/doc/nativeview.md)。
+- 擷取成本取決於地圖像素數；移動中的解析度預設是 `smooth`（固定在框架預設 `AqutterNative.defaultMinScale`（0.4），`GoogleMapsPlugin(quality:, minScale:)` 可調），停下來補完整解析度的定格幀。效能細節見 [aqutter_core 的 doc/nativeview.md](https://github.com/Aqutter/aqutter_core/blob/main/doc/nativeview.md)。

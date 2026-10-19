@@ -33,7 +33,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
     this.initialCamera = const CameraPosition(target: LatLng(25.0330, 121.5654), zoom: 12),
     this.quality,
     this.maxFps,
-    this.minScale = 0.4,
+    this.minScale,
     this.mapType = MapType.normal,
   });
 
@@ -46,8 +46,8 @@ class GoogleMapsPlugin extends AqutterPlugin {
   /// 選填的擷取頻率硬上限；`null`（預設）不限制。地圖的擷取要 40 ms 以上，這個上限從來不會綁住它。
   final int? maxFps;
 
-  /// 移動中的解析度倍率（線性，相對於網頁元素的基準解析度，預設 0.4）。停下來會補一張完整解析度的定格幀。
-  final double minScale;
+  /// 移動中的解析度倍率（線性，相對於網頁元素的基準解析度）；`null`（預設）沿用框架預設 `AqutterNative.defaultMinScale`（0.4）。停下來會補一張完整解析度的定格幀。
+  final double? minScale;
 
   final MapType mapType;
 
