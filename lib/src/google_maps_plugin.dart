@@ -30,12 +30,27 @@ const String aqutterGoogleMapsSession = 'google-maps';
 /// 使用前須設定 Google Maps API key，見 README。
 class GoogleMapsPlugin extends AqutterPlugin {
   GoogleMapsPlugin({
+    this.pluginId = aqutterGoogleMapsSession,
+    this.alignment = Alignment.center,
+    this.widthFactor = 1.0,
+    this.heightFactor = 1.0,
     this.initialCamera = const CameraPosition(target: LatLng(25.0330, 121.5654), zoom: 12),
     this.quality,
     this.maxFps,
     this.minScale,
     this.mapType = MapType.normal,
   });
+
+  /// 外掛 id，也是網頁 `<aqutter-native session="…">` 的 session。同一頁要放多個地圖時，各給一個不同的 id
+  /// （預設 `google-maps`）；網頁以 `callPlugin(id, …)` 呼叫各自的方法。
+  final String pluginId;
+
+  /// 這個地圖在 App 畫面上占的位置與比例（相對於整個畫面）；預設滿版。兩個地圖左右各一半時，
+  /// 一個設 `Alignment.centerLeft`、一個設 `Alignment.centerRight`，`widthFactor` 都是 0.5。
+  /// 網頁上對應的 `<aqutter-native>` 元素要放在同樣的左右半邊，擷取的解析度才與顯示的大小一致。
+  final Alignment alignment;
+  final double widthFactor;
+  final double heightFactor;
 
   /// 地圖載入時的相機位置（預設台北）。
   final CameraPosition initialCamera;
@@ -63,7 +78,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
   static bool get isSupported => !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
 
   @override
-  String get id => 'google-maps';
+  String get id => pluginId;
 
   @override
   Map<String, AqutterPluginHandler> get handlers => {
@@ -71,7 +86,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
         'getCamera': (payload) async => _cameraJson(),
         // 除錯：原生擷取與連線的內部狀態（地圖卡住時看是哪一段停了）
         'diag': (payload) async => {
-              ...AqutterNativeHost.instance.diagnostics(aqutterGoogleMapsSession),
+              ...AqutterNativeHost.instance.diagnostics(pluginId),
               'controllerReady': _controller.isCompleted,
               'applying': _applying,
               'pending': _pending.hasPending,
@@ -143,8 +158,12 @@ class GoogleMapsPlugin extends AqutterPlugin {
       return null;
     }
     return Positioned.fill(
-      child: AqutterNative(
-        sessionId: aqutterGoogleMapsSession,
+      child: FractionallySizedBox(
+        alignment: alignment,
+        widthFactor: widthFactor,
+        heightFactor: heightFactor,
+        child: AqutterNative(
+        sessionId: pluginId,
         quality: quality,
         maxFps: maxFps,
         minScale: _minScaleOverride ?? minScale,
@@ -184,6 +203,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
               ),
             );
           },
+        ),
         ),
       ),
     );
