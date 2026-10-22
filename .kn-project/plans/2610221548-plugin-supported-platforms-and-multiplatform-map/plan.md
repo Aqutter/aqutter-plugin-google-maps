@@ -2,10 +2,10 @@
 # Plan: 2610221548 - plugin-supported-platforms-and-multiplatform-map
 - Created: 2026-10-22
 - Branch: feature/2610221548-plugin-supported-platforms-and-multiplatform-map
-- Issue: 待建立（Phase 2 核准後）
+- Issue: Aqutter/aqutter-plugin-google-maps#3
 - Milestone: N/A（未指定）
 - Base Branch: main
-- Status: Planning
+- Status: In Progress
 - Completed: [Wait for Finish]
 
 ## Goals
@@ -21,14 +21,14 @@
 - **參與 repo 與職責**（一 repo 一 issue，尚未建立者寫 `待建立`）:
   - `Aqutter/aqutter`（契約正本；殼）— `AqutterPlugin.supportedPlatforms`、註冊與不支援時的行為、文件與測試。issue: 待建立
   - `Aqutter/aqutter-plugin-google-maps`（消費方）— 宣告 `supportedPlatforms`，並提供「原生＋JS」的多平台網頁 API。issue: 待建立
-  - `Aqutter/aqutter-js`（僅文件註解）— `isPluginSupported` 的說明；執行時另建極小的計畫與 issue。issue: 待建立
-- **執行順序相依**: ① `aqutter`（殼的宣告機制）合併，並更新 manifest 的 `shell.ref` 與移動 tag（依既有流程）→ ② `aqutter-plugin-google-maps` 依新殼實作與驗證 → ③ `aqutter-js` 註解（可與 ① 同步）。契約提供方先、消費方後。
+  - `Aqutter/aqutter-js` — `callPlugin`／`callPluginRaw` 轉換 `aqutterError`（程式碼與測試）、`isPluginSupported` 說明；執行時另建計畫與 issue。issue: 待建立
+- **執行順序相依**: ① `aqutter`（殼的宣告機制）合併，並更新 manifest 的 `shell.ref` 與移動 tag（依既有流程）→ ② `aqutter-plugin-google-maps` 依新殼實作與驗證 → ③ `aqutter-js` 的錯誤轉換（與 ① 互不相依，需在 ② 之前合併並更新 manifest 的 `client.spec`）。契約提供方先、消費方後。
 - **範圍外**: 不改 plugin 的 id（維持 `google-maps`、套件名 `aqutter-plugin-google-maps`）；不新增 bridge handler；不處理 JS API key 經殼傳遞；不做 Linux／Windows 原生地圖。
 
 - **本計畫所屬 repo**: `Aqutter/aqutter-plugin-google-maps`
 
 ## Contract / 介面契約
-- **契約正本 repo**: `Aqutter/aqutter`　**修訂號**: `rev 1`　**狀態**: `草擬`
+- **契約正本 repo**: `Aqutter/aqutter`　**修訂號**: `rev 2`　**狀態**: `凍結（rev 1 核准日 2026-10-22；rev 2 核准日 2026-10-22）`
 
 ### 1. Dart：`AqutterPlugin.supportedPlatforms`（`Aqutter/aqutter`，`shell/lib/src/plugin/aqutter_plugin.dart`）
 | 項目 | 值 |
@@ -41,17 +41,18 @@
 | 不支援時 `buildUnderlay`／`buildOverlay` | 不呼叫（視同回傳 null） |
 | 不支援時 `dispose` | 仍呼叫（可安全重複釋放） |
 
-### 2. TS：`isPluginSupported(pluginId, method)`（`Aqutter/aqutter-js`，`src/index.ts`）
+### 2. TS（`Aqutter/aqutter-js`，`src/index.ts`）
 | 項目 | 值 |
 |---|---|
-| 行為 | 不變：能力表有 `<id>.<method>` 才為 true；能力表尚未取得時為 true |
-| 意義 | 「這個方法在本平台做得到」（支援平台宣告生效後才有此意義）；只改文件註解 |
+| `isPluginSupported(pluginId, method)` | 行為不變：能力表有 `<id>.<method>` 才為 true；能力表尚未取得時為 true。意義＝「這個方法在本平台做得到」（支援平台宣告生效後才有此意義）；只改文件註解 |
+| `callPluginRaw`／`callPlugin` | **新增**：`callHandler` 的結果若是物件且有 `aqutterError` 欄位（物件，含字串 `code` 與 `message`），改為拋出 `Error`，`message` 為 `<code>: <message>`，並帶 `code` 屬性；其餘結果原樣回傳 |
 
 ### 3. 不支援平台上的呼叫
 | 情境 | 結果 |
 |---|---|
-| 網頁對不支援平台的 plugin 方法 `callPlugin` | Promise 被 reject，錯誤訊息含 `UNSUPPORTED_PLATFORM`、plugin id、方法名、目前平台；**不得**無回應（先前 Linux 上 battery 呼叫卡住的教訓） |
-| 能否在殼端攔到 | 實作前先驗證「handler 回傳錯誤時網頁端 Promise 會 reject」；若殼的回報通道做不到，退而回傳 `{ "error": "UNSUPPORTED_PLATFORM", … }` 並由 TS `callPlugin` 轉成 reject（屆時走 Rule 29 修改本契約） |
+| 網頁對不支援平台的 plugin 方法 `callPlugin` | 殼**不執行** plugin 的函式，回傳 `{ "aqutterError": { "code": "UNSUPPORTED_PLATFORM", "message": "<id>.<method> is not supported on <platform>" } }`；網頁端 `callPlugin` 依第 2 點拋出 `Error`（`code === 'UNSUPPORTED_PLATFORM'`）。**不得**無回應 |
+| 為什麼不用丟例外 | 例外如何傳回網頁取決於各原生平台（iOS、Android、macOS、Windows、Linux）的實作，無法逐一驗證，且 Linux 上曾出現呼叫永遠不回應；殼目前處理失敗的慣例本來就是回傳錯誤資料（如 `bridge_registry.dart` 的 `'error'`） |
+| 保留格式 | `aqutterError` 為保留欄位；plugin 自己的回傳不得使用此欄位名 |
 
 ### 4. google-maps 網頁 API（`Aqutter/aqutter-plugin-google-maps`，`src/index.ts`）
 | 成員 | 簽章 | 說明 |
@@ -73,7 +74,7 @@
 - google-maps 的頂層 API 是破壞式移除（使用者指示：開發階段不考慮既有程式），範本專案目前沒有使用地圖。
 
 ### 7. 變更紀錄
-- _(尚無)_
+- **rev 2（2026-10-22）**：第 3 點由「handler 回傳錯誤、網頁 Promise reject」改為「殼回傳 `aqutterError` 資料，`aqutter-js` 的 `callPlugin` 轉成拋出」；第 2 點新增 `callPluginRaw`／`callPlugin` 的轉換。原因：例外傳遞依賴各原生平台，無法逐一驗證。影響：`Aqutter/aqutter-js` 從「只改註解」變成要改程式碼並加測試；`Aqutter/aqutter`、`Aqutter/aqutter-plugin-google-maps` 的契約區塊同步。使用者於 2026-10-22 核准。
 
 ## Impact Files
 - `lib/src/google_maps_plugin.dart:27`（類別文件註解）、`:78`（`isSupported`）、`:84-85`（`handlers` 內的 `'isSupported'`）— 新增 `supportedPlatforms`；`isSupported` 改為或移除（網頁改用 `provider()`）；註解更新。
@@ -103,9 +104,12 @@
 - **[Q2]** 非原生平台用 Google Maps JavaScript API（使用者選擇，未採納建議的 MapLibre）— 後果：需另一組 JS API key、計費、必須從 Google 載入腳本（無法離線）、release 的來源是隨機埠，key 的網址限制怎麼填待驗證。
 - **[Q3]** plugin 名稱維持 `aqutter-plugin-google-maps`（使用者選擇）— 理由：JS 引擎選了 Google，名稱與行為一致。
 - **[Q4]** JS API key 由網頁端 `googleMaps.configure({ jsApiKey })` 傳入（使用者選擇，建議項）— 理由：plugin 不讀檔案、不寫 key 進 repo，與原生端「key 由使用端設定」一致；不新增 bridge handler。
+- **[契約 rev 2]** 不支援平台的呼叫由殼回傳 `aqutterError` 資料、`aqutter-js` 轉成拋出（使用者核准）。
 - **[設計]** 地圖 plugin 自己提供多平台能力（使用者指示）：原生（iOS/Android）與 JS（其他平台）在 plugin 內由 `mount` 依 `provider()` 切換，使用端只寫一份。
 - **[破壞式]** 開發階段不考慮既有程式（使用者指示）：google-maps 頂層 API 直接移除。
-- **[執行模式]** 序列。**[完成後]** 待核准閘決定。
+- **[契約]** rev 1 凍結（核准日 2026-10-22）。
+- **[完成後]** commit + 開 PR（併回 `main`；使用者核准時未更動預設）。
+- **[執行模式]** 序列。
 
 ## Git Completion Policy
 - PR 一律以 `--base main` 顯式指定；commit 與 PR body 含 `Closes #N`。
