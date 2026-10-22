@@ -1,27 +1,31 @@
-import { callPlugin, defineAqutterNative, onPluginEvent } from '@aqutter/aqutter'
+import { defineAqutterNative, isPluginSupported } from '@aqutter/aqutter'
 import type { AqutterNativeElement, PluginDefinition } from '@aqutter/aqutter'
+import { createJsView } from './jsProvider'
+import { GOOGLE_MAPS_SESSION, createNativeView } from './nativeProvider'
+import type {
+  GoogleMapsCamera,
+  GoogleMapsMarker,
+  GoogleMapsMountOptions,
+  GoogleMapsProvider,
+  GoogleMapsType,
+  GoogleMapsView,
+} from './view'
 
-/** 地圖相機位置。 */
-export interface GoogleMapsCamera {
-  lat: number
-  lng: number
-  zoom: number
-}
+export type {
+  GoogleMapsCamera,
+  GoogleMapsMarker,
+  GoogleMapsMountOptions,
+  GoogleMapsMoveOptions,
+  GoogleMapsProvider,
+  GoogleMapsType,
+  GoogleMapsUnsubscribe,
+  GoogleMapsView,
+} from './view'
+export { GOOGLE_MAPS_SESSION }
 
-/** 標記。`id` 省略時由原生端產生。 */
-export interface GoogleMapsMarker {
-  id?: string
-  lat: number
-  lng: number
-  title?: string
-}
-
-export type GoogleMapsType = 'normal' | 'satellite' | 'terrain' | 'hybrid'
-
-/** google-maps plugin 的契約。Dart 端 `GoogleMapsPlugin` 提供同名方法與事件。 */
+/** google-maps plugin 的契約（`native` provider 用）。Dart 端 `GoogleMapsPlugin` 提供同名方法與事件。 */
 export type GoogleMapsContract = PluginDefinition<
   {
-    isSupported: { req: void, res: { supported: boolean } }
     getCamera: { req: void, res: GoogleMapsCamera }
     moveTo: { req: { lat: number, lng: number, zoom?: number, animate?: boolean }, res: { ok: boolean } }
     setMarkers: { req: { markers: GoogleMapsMarker[] }, res: { count: number } }
@@ -40,32 +44,46 @@ declare module '@aqutter/aqutter' {
   }
 }
 
-/** 與 Dart 端 `aqutterGoogleMapsSession` 一致。 */
-export const GOOGLE_MAPS_SESSION = 'google-maps'
+export interface GoogleMapsConfig {
+  /** Google Maps JavaScript API key（非原生平台用）；由使用端 App 傳入，不要寫進會提交的檔案。 */
+  jsApiKey?: string
+}
 
-/** 網頁端 API。 */
+let config: GoogleMapsConfig = {}
+
+/**
+ * 網頁端 API。
+ *
+ * 用法：先（需要時）`configure({ jsApiKey })`，再 `await googleMaps.mount(container)` 取得 `GoogleMapsView`。
+ * iOS、Android 走原生地圖；其他平台（以及純瀏覽器）走 Google Maps JavaScript API。
+ */
 export const googleMaps = {
-  /** 註冊 `<aqutter-native>` 元素（冪等）；之後在頁面放 `<aqutter-native session="google-maps">` 即可。 */
+  /** 設定非原生平台用的 Google Maps JavaScript API key；須在 `mount` 前呼叫，原生平台忽略。 */
+  configure: (options: GoogleMapsConfig): void => {
+    config = { ...config, ...options }
+  },
+  /**
+   * 目前平台用哪個 provider（同步）。依殼回報的能力表判斷：plugin 在本平台有原生實作才是 `'native'`。
+   * 殼的平台資訊尚未載入時（啟動早期）一律視為支援，會回 `'native'`——請在 App 的平台資訊就緒後再 `mount`。
+   */
+  provider: (): GoogleMapsProvider => (isPluginSupported('google-maps', 'moveTo') ? 'native' : 'js'),
+  /** 註冊 `<aqutter-native>` 元素（冪等）。`mount` 會自己呼叫；只有要自己放元素時才需要。 */
   define: (): void => defineAqutterNative(),
-  /** 目前平台是否有地圖（Android、iOS）。其他平台請改顯示替代內容。 */
-  isSupported: async (): Promise<boolean> => (await callPlugin('google-maps', 'isSupported')).supported,
-  getCamera: () => callPlugin('google-maps', 'getCamera'),
-  /** 移動相機；`zoom` 省略時保持目前縮放。預設立即移動，`animate: true` 才做動畫（動畫要靠地圖持續繪圖）。 */
-  moveTo: (lat: number, lng: number, options: { zoom?: number, animate?: boolean } = {}) =>
-    callPlugin('google-maps', 'moveTo', { lat, lng, ...options }),
-  /** 以這份清單取代全部標記。 */
-  setMarkers: (markers: GoogleMapsMarker[]) => callPlugin('google-maps', 'setMarkers', { markers }),
-  setMapType: (type: GoogleMapsType) => callPlugin('google-maps', 'setMapType', { type }),
-  /** 地圖建立完成。 */
-  onReady: (listener: (camera: GoogleMapsCamera) => void): (() => void) =>
-    onPluginEvent('google-maps', 'ready', payload => listener(payload.camera)),
-  /** 相機停止移動（拖曳、縮放或動畫結束）。 */
-  onCameraIdle: (listener: (camera: GoogleMapsCamera) => void): (() => void) =>
-    onPluginEvent('google-maps', 'cameraIdle', listener),
-  /** 點擊地圖，回報點到的經緯度。 */
-  onTap: (listener: (position: { lat: number, lng: number }) => void): (() => void) =>
-    onPluginEvent('google-maps', 'tap', listener),
-  /** 取得頁面上顯示地圖的 `<aqutter-native>` 元素。 */
+  /**
+   * 在 `container` 內建立地圖並回傳控制介面。container 內可以再疊任何 HTML。
+   *
+   * `'js'` provider 沒有先 `configure({ jsApiKey })`、或腳本載入失敗／逾時，都會 reject。
+   */
+  mount: async (container: HTMLElement, options: GoogleMapsMountOptions = {}): Promise<GoogleMapsView> => {
+    if (googleMaps.provider() === 'native') {
+      return createNativeView(container, options)
+    }
+    if (!config.jsApiKey) {
+      throw new Error('[googleMaps] this platform uses the Google Maps JavaScript API: call googleMaps.configure({ jsApiKey }) before mount()')
+    }
+    return createJsView(container, options, config.jsApiKey)
+  },
+  /** 取得頁面上顯示原生地圖的 `<aqutter-native>` 元素（只有 `'native'` provider 有）。 */
   element: (root: ParentNode = document): AqutterNativeElement | null =>
     root.querySelector<AqutterNativeElement>(`aqutter-native[session="${GOOGLE_MAPS_SESSION}"]`),
 }

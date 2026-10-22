@@ -24,8 +24,9 @@ const String aqutterGoogleMapsSession = 'google-maps';
 /// Google 地圖 plugin：地圖在 Flutter 裡渲染（墊在 WebView 之下），以 [AqutterNative] 鏡像到網頁的 canvas，
 /// 網頁因此能在地圖**之上**疊 HTML。手勢從網頁回傳，經 [AqutterMapGestureMapper] 換成相機更新。
 ///
-/// 平台：Android、iOS。其他平台沒有 google_maps_flutter 的原生實作，[buildUnderlay] 回 null，
-/// 網頁端以 `googleMaps.isSupported()` 得知。
+/// 平台：原生地圖只有 Android、iOS（[nativePlatforms]）。[supportedPlatforms] 宣告了這件事，所以其他平台上
+/// 殼不會呼叫本 plugin 的 `attach`、`buildUnderlay` 與 handler；網頁端的 `googleMaps.mount()` 在那些平台改用
+/// Google Maps JavaScript API（見 README），不需要 Dart 端參與。
 ///
 /// 使用前須設定 Google Maps API key，見 README。
 class GoogleMapsPlugin extends AqutterPlugin {
@@ -74,15 +75,17 @@ class GoogleMapsPlugin extends AqutterPlugin {
   CameraPosition _camera = const CameraPosition(target: LatLng(0, 0));
   AqutterMapSize _size = (width: 0, height: 0);
 
-  /// 目前支援的平台：有 google_maps_flutter 原生實作的 Android 與 iOS。
-  static bool get isSupported => !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+  /// 有 google_maps_flutter 原生實作的平台：Android 與 iOS。
+  static const Set<TargetPlatform> nativePlatforms = {TargetPlatform.android, TargetPlatform.iOS};
+
+  @override
+  Set<TargetPlatform>? get supportedPlatforms => nativePlatforms;
 
   @override
   String get id => pluginId;
 
   @override
   Map<String, AqutterPluginHandler> get handlers => {
-        'isSupported': (payload) async => {'supported': isSupported},
         'getCamera': (payload) async => _cameraJson(),
         // 除錯：原生擷取與連線的內部狀態（地圖卡住時看是哪一段停了）
         'diag': (payload) async => {
@@ -154,7 +157,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
 
   @override
   Widget? buildUnderlay(BuildContext context) {
-    if (!isSupported) {
+    if (kIsWeb || !nativePlatforms.contains(defaultTargetPlatform)) {
       return null;
     }
     return Positioned.fill(

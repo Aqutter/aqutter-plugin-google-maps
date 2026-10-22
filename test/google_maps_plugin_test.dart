@@ -142,14 +142,19 @@ void main() {
       expect(await plugin.handlers['setMapType']!({'type': 'unknown'}), {'type': 'normal'});
     });
 
-    test('the underlay is skipped on platforms without a native implementation', () {
-      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
-      expect(GoogleMapsPlugin.isSupported, isFalse);
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      expect(GoogleMapsPlugin.isSupported, isTrue);
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      expect(GoogleMapsPlugin.isSupported, isTrue);
+    test('the plugin declares only Android and iOS as supported platforms', () {
+      final plugin = GoogleMapsPlugin();
+      expect(plugin.supportedPlatforms, {TargetPlatform.android, TargetPlatform.iOS});
+      for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+        expect(aqutterPluginSupports(plugin, platform), isTrue, reason: '$platform');
+      }
+      for (final platform in [TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux, TargetPlatform.fuchsia]) {
+        expect(aqutterPluginSupports(plugin, platform), isFalse, reason: '$platform');
+      }
+    });
+
+    test('there is no isSupported handler any more: the web asks the shell instead', () {
+      expect(GoogleMapsPlugin().handlers.containsKey('isSupported'), isFalse);
     });
   });
 }
