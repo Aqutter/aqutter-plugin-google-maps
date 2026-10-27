@@ -68,7 +68,9 @@ class GoogleMapsPlugin extends AqutterPlugin {
   final MapType mapType;
 
   AqutterPluginContext? _context;
-  final Completer<GoogleMapController> _controller = Completer<GoogleMapController>();
+  /// 最近一次 `onMapCreated` 給的控制器。`GoogleMap` widget 被銷毀再重建時會得到新的控制器，舊的一旦銷毀就不能再用
+  /// （會丟「was used after the associated GoogleMap widget had already been disposed」），所以每次建立都要換成最新的。
+  GoogleMapController? _mapController;
   final AqutterMapGestureMapper _mapper = AqutterMapGestureMapper();
   final ValueNotifier<Set<Marker>> _markers = ValueNotifier<Set<Marker>>(<Marker>{});
   final ValueNotifier<MapType> _type = ValueNotifier<MapType>(MapType.normal);
@@ -90,7 +92,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
         // 除錯：原生擷取與連線的內部狀態（地圖卡住時看是哪一段停了）
         'diag': (payload) async => {
               ...AqutterNativeHost.instance.diagnostics(pluginId),
-              'controllerReady': _controller.isCompleted,
+              'controllerReady': _mapController != null,
               'applying': _applying,
               'pending': _pending.hasPending,
               'camera': _cameraJson(),
@@ -194,9 +196,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
                   compassEnabled: false,
                   mapToolbarEnabled: false,
                   onMapCreated: (controller) {
-                    if (!_controller.isCompleted) {
-                      _controller.complete(controller);
-                    }
+                    _mapController = controller;
                     _context?.emit('ready', {'camera': _cameraJson()});
                   },
                   // 注意：iOS 上程式化移動相機（moveCamera）不會觸發這個回呼，所以不能拿它當縮放的基準
@@ -212,12 +212,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
     );
   }
 
-  Future<GoogleMapController?> _readyController() async {
-    if (!_controller.isCompleted) {
-      return null;
-    }
-    return _controller.future;
-  }
+  Future<GoogleMapController?> _readyController() async => _mapController;
 
   Future<void> _onMessage(AqutterNativeMessage message) async {
     final controller = await _readyController();
@@ -282,6 +277,7 @@ class GoogleMapsPlugin extends AqutterPlugin {
   @override
   void dispose() {
     _context = null;
+    _mapController = null;
     _markers.dispose();
     _type.dispose();
   }
